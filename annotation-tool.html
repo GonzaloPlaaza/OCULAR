@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VesselRefinement — Artery·Vein·Crossing Annotation Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --panel: #1a1d27;
+    --border: #252836;
+    --border-bright: #353850;
+    --text: #c8cdd8;
+    --text-dim: #5a6070;
+    --text-bright: #e8ecf4;
+    --accent: #3d7fff;
+
+    --artery: #ff3344;
+    --vein: #3d7fff;
+    --crossing: #2ecc71;
+    --uncertain: #f0f0f0;
+
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 18px;
+    height: 48px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  #topbar .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    margin-right: 8px;
+  }
+  #topbar .logo span { color: var(--accent); }
+
+  .tb-sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+
+  .tb-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    border-radius: 5px;
+    border: 1px solid var(--border-bright);
+    background: var(--panel);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .tb-btn:hover { border-color: var(--accent); color: var(--text-bright); }
+  .tb-btn svg { flex-shrink: 0; }
+
+  #nav-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  #frame-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    min-width: 90px;
+    text-align: center;
+  }
+
+  .nav-btn {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 5px;
+    border: 1px solid var(--border-bright);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text-bright); }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  #export-btn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  #export-btn:hover { background: #5a93ff; border-color: #5a93ff; }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── LEFT PANEL ── */
+  #left-panel {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 14px 12px;
+    gap: 18px;
+    overflow-y: auto;
+  }
+
+  .panel-section { display: flex; flex-direction: column; gap: 8px; }
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Brush tools */
+  .brush-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: all .15s;
+    width: 100%;
+  }
+  .brush-btn:hover { background: var(--panel); }
+  .brush-btn.active {
+    background: var(--panel);
+    border-color: var(--border-bright);
+  }
+  .brush-btn.active .brush-swatch { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor; }
+
+  .brush-swatch {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .brush-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    flex: 1;
+    text-align: left;
+  }
+  .brush-key {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    background: var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+
+  /* Eraser */
+  .eraser-btn {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: all .15s;
+    width: 100%;
+  }
+  .eraser-btn:hover { background: var(--panel); }
+  .eraser-btn.active { background: var(--panel); border-color: var(--border-bright); }
+
+  /* Brush size */
+  .size-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .size-row label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); flex-shrink: 0; width: 28px; }
+  #brush-size-slider {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+  #brush-size-val {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    width: 24px;
+    text-align: right;
+  }
+
+  /* Opacity */
+  #opacity-slider { flex: 1; accent-color: var(--accent); }
+  #opacity-val { font-family: var(--mono); font-size: 10px; color: var(--text-dim); width: 30px; text-align: right; }
+
+  /* Zoom */
+  .zoom-row {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .zoom-btn {
+    width: 24px; height: 24px;
+    border-radius: 4px;
+    border: 1px solid var(--border-bright);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+  #zoom-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    flex: 1;
+  }
+
+  /* Undo / Clear */
+  .action-btn {
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border-bright);
+    background: var(--panel);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .action-btn:hover { border-color: var(--accent); color: var(--text-bright); }
+
+  /* Status */
+  #status-area {
+    margin-top: auto;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  /* ── CANVAS AREA ── */
+  #canvas-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #080a0f;
+  }
+
+  #column-headers {
+    display: flex;
+    height: 30px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .col-header {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-right: 1px solid var(--border);
+  }
+  .col-header:last-child { border-right: none; }
+
+  #viewers {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .viewer-wrap {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    border-right: 1px solid var(--border);
+    cursor: crosshair;
+  }
+  .viewer-wrap:last-child { border-right: none; }
+  #seg-viewer { cursor: crosshair; }
+  #img-viewer { cursor: default; }
+
+  .viewer-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;       /* fallback */
+    image-rendering: -moz-crisp-edges;  /* firefox */
+  }
+
+  /* The annotation canvas sits on top of seg canvas */
+  #annot-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    transform-origin: top left;
+    image-rendering: pixelated;
+    pointer-events: none; /* drawing handled by wrapper */
+    opacity: 1.0;
+  }
+
+  /* Welcome screen */
+  #welcome {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    z-index: 20;
+    pointer-events: none;
+  }
+  #welcome.hidden { display: none; }
+  .welcome-text {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.8;
+  }
+  .welcome-cta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--panel);
+    border: 1px dashed var(--border-bright);
+    border-radius: 8px;
+    padding: 20px 30px;
+    text-align: center;
+  }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    bottom: 12px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid var(--border-bright);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  #tooltip.show { opacity: 1; }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">Vessel<span>Refinement</span></div>
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn" id="btn-load-seg" title="Load segmentation folder">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+    </svg>
+    Segmentations
+  </button>
+  <button class="tb-btn" id="btn-load-img" title="Load images folder">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>
+    Images
+  </button>
+
+  <div class="tb-sep"></div>
+
+  <div id="nav-area">
+    <button class="nav-btn" id="btn-prev" disabled title="Previous (←)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <span id="frame-label">– / –</span>
+    <button class="nav-btn" id="btn-next" disabled title="Next (→)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn" id="export-btn" title="Export all annotations as ZIP">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+    Export ZIP
+  </button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+
+    <!-- Brushes -->
+    <div class="panel-section">
+      <div class="panel-title">Brush</div>
+
+      <button class="brush-btn active" data-tool="artery" title="Artery (key: 1)">
+        <div class="brush-swatch" style="background:var(--artery); color:var(--artery)"></div>
+        <span class="brush-label">Artery</span>
+        <span class="brush-key">1</span>
+      </button>
+      <button class="brush-btn" data-tool="vein" title="Vein (key: 2)">
+        <div class="brush-swatch" style="background:var(--vein); color:var(--vein)"></div>
+        <span class="brush-label">Vein</span>
+        <span class="brush-key">2</span>
+      </button>
+      <button class="brush-btn" data-tool="crossing" title="Crossing (key: 3)">
+        <div class="brush-swatch" style="background:var(--crossing); color:var(--crossing)"></div>
+        <span class="brush-label">Crossing</span>
+        <span class="brush-key">3</span>
+      </button>
+      <button class="brush-btn" data-tool="uncertain" title="Uncertain (key: 4)">
+        <div class="brush-swatch" style="background:var(--uncertain); border: 1px solid #555; color:var(--uncertain)"></div>
+        <span class="brush-label">Uncertain</span>
+        <span class="brush-key">4</span>
+      </button>
+
+      <button class="eraser-btn" data-tool="eraser" title="Eraser (key: E)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 20H7L3 16l11-11 6 6-3.5 3.5"/><path d="M6.0 11.0 l7 7"/>
+        </svg>
+        <span class="brush-label" style="font-family:var(--mono);font-size:11px;color:var(--text)">Eraser</span>
+        <span class="brush-key">E</span>
+      </button>
+    </div>
+
+    <!-- Size -->
+    <div class="panel-section">
+      <div class="panel-title">Size</div>
+      <div class="size-row">
+        <label>px</label>
+        <input type="range" id="brush-size-slider" min="1" max="80" value="10">
+        <span id="brush-size-val">10</span>
+      </div>
+      <div class="size-row">
+        <label>α</label>
+        <input type="range" id="opacity-slider" min="10" max="100" value="85">
+        <span id="opacity-val">85%</span>
+      </div>
+    </div>
+
+    <!-- Zoom -->
+    <div class="panel-section">
+      <div class="panel-title">Zoom</div>
+      <div class="zoom-row">
+        <button class="zoom-btn" id="zoom-out">−</button>
+        <span id="zoom-label">100%</span>
+        <button class="zoom-btn" id="zoom-in">+</button>
+      </div>
+      <button class="action-btn" id="zoom-fit" style="margin-top:4px;justify-content:center;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
+        </svg>
+        Fit to view
+      </button>
+      <button class="action-btn" id="toggle-mode">
+        Cursor / Draw
+      </button>
+    </div>
+
+    <!-- Actions -->
+    <div class="panel-section">
+      <div class="panel-title">Actions</div>
+      <button class="action-btn" id="btn-undo">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/>
+        </svg>
+        Undo  <span class="brush-key" style="margin-left:auto">Ctrl+Z</span>
+      </button>
+      <button class="action-btn" id="btn-clear">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+        </svg>
+        Clear frame
+      </button>
+    </div>
+
+    <!-- Status -->
+    <div id="status-area">
+      <div id="status-seg">Seg: none</div>
+      <div id="status-img">Img: none</div>
+      <div id="status-cursor">x: – y: –</div>
+    </div>
+  </div>
+
+  <!-- CANVAS AREA -->
+  <div id="canvas-area">
+    <div id="column-headers">
+      <div class="col-header">Segmentation (annotate here)</div>
+      <div class="col-header">Original Image</div>
+    </div>
+
+    <div id="viewers">
+
+      <!-- SEG VIEWER -->
+      <div class="viewer-wrap" id="seg-viewer">
+        <canvas class="viewer-canvas" id="seg-canvas"></canvas>
+        <canvas id="annot-canvas"></canvas>
+
+        <div id="welcome">
+          <div class="welcome-cta">
+            Load segmentation &amp; image folders<br>using the buttons above to begin.
+          </div>
+          <div class="welcome-text">
+            Shortcuts: 1 Artery · 2 Vein · 3 Crossing · 4 Uncertain · E Eraser<br>
+            Ctrl+Z Undo · Scroll to zoom · Middle-drag to pan
+          </div>
+        </div>
+      </div>
+
+      <!-- IMG VIEWER -->
+      <div class="viewer-wrap" id="img-viewer">
+        <canvas class="viewer-canvas" id="img-canvas"></canvas>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="seg-folder-input" webkitdirectory multiple accept="image/*" style="display:none">
+<input type="file" id="img-folder-input" webkitdirectory multiple accept="image/*" style="display:none">
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+const state = {
+  segFiles: [],        // sorted File[]
+  imgFiles: [],        // sorted File[]
+  annotations: {},     // index → ImageData (on-canvas pixel data at native res)
+  currentIndex: -1,
+  zoomSeg: 1,
+  zoomImg: 1,
+  panSegX: 0,
+  panSegY: 0,
+  panImgX: 0,
+  panImgY: 0,
+  mode: 'draw', // NEW: draw | pan
+  tool: 'artery',
+  brushSize: 10,
+  isDrawing: false,
+  isPanning: false,
+  lastX: 0,
+  lastY: 0,
+  undoStack: {},       // index → ImageData[]
+  MAX_UNDO: 30,
+  activeViewer: null, // 'seg' or 'img'
+};
+
+const COLORS = {
+  artery:   [255, 0, 0, 255],
+  vein:     [0, 0, 255, 255],
+  crossing: [0, 255, 0, 255],
+  uncertain:[255, 255, 255, 255],
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  DOM
+// ═══════════════════════════════════════════════════════════════
+const segViewer  = document.getElementById('seg-viewer');
+const imgViewer  = document.getElementById('img-viewer');
+const segCanvas  = document.getElementById('seg-canvas');
+const imgCanvas  = document.getElementById('img-canvas');
+const annotCanvas= document.getElementById('annot-canvas');
+const segCtx     = segCanvas.getContext('2d');
+const imgCtx     = imgCanvas.getContext('2d');
+const annotCtx   = annotCanvas.getContext('2d');
+segCtx.imageSmoothingEnabled   = false;
+imgCtx.imageSmoothingEnabled   = false;
+annotCtx.imageSmoothingEnabled = false;
+
+const welcome    = document.getElementById('welcome');
+const frameLabel = document.getElementById('frame-label');
+const zoomLabel  = document.getElementById('zoom-label');
+const statusSeg  = document.getElementById('status-seg');
+const statusImg  = document.getElementById('status-img');
+const statusCursor= document.getElementById('status-cursor');
+const brushSizeSlider = document.getElementById('brush-size-slider');
+const brushSizeVal    = document.getElementById('brush-size-val');
+const opacitySlider   = document.getElementById('opacity-slider');
+const opacityVal      = document.getElementById('opacity-val');
+
+// ═══════════════════════════════════════════════════════════════
+//  FOLDER LOADING
+// ═══════════════════════════════════════════════════════════════
+function sortFiles(files) {
+  return Array.from(files)
+    .filter(f => /\.(png|jpg|jpeg|tif|tiff|bmp)$/i.test(f.name))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+}
+
+document.getElementById('btn-load-seg').onclick = () =>
+  document.getElementById('seg-folder-input').click();
+document.getElementById('btn-load-img').onclick = () =>
+  document.getElementById('img-folder-input').click();
+
+document.getElementById('seg-folder-input').onchange = e => {
+  state.segFiles = sortFiles(e.target.files);
+  statusSeg.textContent = `Seg: ${state.segFiles.length} files`;
+  tryLoadFirst();
+};
+document.getElementById('img-folder-input').onchange = e => {
+  state.imgFiles = sortFiles(e.target.files);
+  statusImg.textContent = `Img: ${state.imgFiles.length} files`;
+  tryLoadFirst();
+};
+
+function tryLoadFirst() {
+  if (state.segFiles.length > 0 && state.imgFiles.length > 0) {
+    welcome.classList.add('hidden');
+    state.currentIndex = 0;
+    loadFrame(0);
+    updateNav();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FRAME LOADING
+// ═══════════════════════════════════════════════════════════════
+function loadImage(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = rej;
+    img.src = url;
+  });
+}
+
+async function loadFrame(idx) {
+  const seg = state.segFiles[idx];
+  const img = state.imgFiles[idx];
+
+  // Load both images
+  const [segImg, baseImg] = await Promise.all([
+    loadImage(seg),
+    loadImage(img),
+  ]);
+
+  // Set canvas dimensions to image natural size
+  segCanvas.width  = segImg.naturalWidth;
+  segCanvas.height = segImg.naturalHeight;
+  annotCanvas.width  = segImg.naturalWidth;
+  annotCanvas.height = segImg.naturalHeight;
+  imgCanvas.width  = baseImg.naturalWidth;
+  imgCanvas.height = baseImg.naturalHeight;
+
+  segCtx.drawImage(segImg, 0, 0);
+  imgCtx.drawImage(baseImg, 0, 0);
+
+  // Restore or blank annotation
+  annotCtx.clearRect(0, 0, annotCanvas.width, annotCanvas.height);
+  if (state.annotations[idx]) {
+    annotCtx.putImageData(state.annotations[idx], 0, 0);
+  }
+  if (!state.undoStack[idx]) state.undoStack[idx] = [];
+
+  // Fit to view
+  fitToView();
+  frameLabel.textContent = `${idx + 1} / ${Math.max(state.segFiles.length, state.imgFiles.length)}`;
+}
+
+function saveCurrentAnnotation() {
+  if (state.currentIndex < 0) return;
+  state.annotations[state.currentIndex] =
+    annotCtx.getImageData(0, 0, annotCanvas.width, annotCanvas.height);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function go(delta) {
+  if (state.currentIndex < 0) return;
+  saveCurrentAnnotation();
+  const n = Math.max(state.segFiles.length, state.imgFiles.length);
+  const next = state.currentIndex + delta;
+  if (next < 0 || next >= n) return;
+  state.currentIndex = next;
+  loadFrame(next);
+  updateNav();
+}
+
+function updateNav() {
+  const n = Math.max(state.segFiles.length, state.imgFiles.length);
+  document.getElementById('btn-prev').disabled = state.currentIndex <= 0;
+  document.getElementById('btn-next').disabled = state.currentIndex >= n - 1;
+}
+
+document.getElementById('btn-prev').onclick = () => go(-1);
+document.getElementById('btn-next').onclick = () => go(1);
+
+// ═══════════════════════════════════════════════════════════════
+//  ZOOM & PAN
+// ═══════════════════════════════════════════════════════════════
+function applyTransform() {
+  const tSeg = `translate(${state.panSegX}px, ${state.panSegY}px) scale(${state.zoomSeg})`;
+  const tImg = `translate(${state.panImgX}px, ${state.panImgY}px) scale(${state.zoomImg})`;
+
+  segCanvas.style.transform   = tSeg;
+  annotCanvas.style.transform = tSeg;
+  imgCanvas.style.transform   = tImg;
+
+  zoomLabel.textContent =
+    `Seg ${Math.round(state.zoomSeg*100)}% | Img ${Math.round(state.zoomImg*100)}%`;
+}
+
+function fitToView() {
+  if (!segCanvas.width) return;
+
+  const vw = segViewer.clientWidth;
+  const vh = segViewer.clientHeight;
+
+  const scale = Math.min(vw / segCanvas.width, vh / segCanvas.height) * 0.95;
+
+  state.zoomSeg = scale;
+  state.zoomImg = scale;
+
+  state.panSegX = (vw - segCanvas.width * scale) / 2;
+  state.panSegY = (vh - segCanvas.height * scale) / 2;
+
+  state.panImgX = (vw - imgCanvas.width * scale) / 2;
+  state.panImgY = (vh - imgCanvas.height * scale) / 2;
+
+  applyTransform();
+}
+
+function zoomAround(viewer, isSeg, cx, cy, factor) {
+  let zoom = isSeg ? state.zoomSeg : state.zoomImg;
+  let panX = isSeg ? state.panSegX : state.panImgX;
+  let panY = isSeg ? state.panSegY : state.panImgY;
+
+  const newZoom = Math.min(20, Math.max(0.1, zoom * factor));
+  const ratio = newZoom / zoom;
+
+  panX = cx - ratio * (cx - panX);
+  panY = cy - ratio * (cy - panY);
+
+  if (isSeg) {
+    state.zoomSeg = newZoom;
+    state.panSegX = panX;
+    state.panSegY = panY;
+  } else {
+    state.zoomImg = newZoom;
+    state.panImgX = panX;
+    state.panImgY = panY;
+  }
+
+  applyTransform();
+}
+
+document.getElementById('zoom-in').onclick = () => {
+  const r = segViewer.getBoundingClientRect();
+  zoomAround(segViewer, true, r.width/2, r.height/2, 1.25);
+};
+document.getElementById('zoom-out').onclick = () => {
+  const r = segViewer.getBoundingClientRect();
+  zoomAround(segViewer, false, r.width/2, r.height/2, 0.8);
+};
+document.getElementById('zoom-fit').onclick = fitToView;
+
+document.getElementById('toggle-mode').onclick = () => {
+  state.mode = state.mode === 'draw' ? 'pan' : 'draw';
+  showTooltip(`Mode: ${state.mode}`);
+};
+
+// Wheel zoom on seg viewer
+segViewer.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = segViewer.getBoundingClientRect();
+  zoomAround(segViewer, true, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.1 : 0.9);
+}, {passive:false});
+
+// Wheel zoom on img viewer (sync)
+imgViewer.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = imgViewer.getBoundingClientRect();
+  zoomAround(imgViewer, false, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.1 : 0.9);
+}, {passive:false});
+
+imgViewer.addEventListener('mousedown', e => {
+  if (state.currentIndex < 0) return;
+
+  const isPanTrigger =
+    state.mode === 'pan' ||
+    e.button === 1 ||
+    (e.button === 0 && e.altKey);
+
+  if (isPanTrigger) {
+    e.preventDefault();
+
+    state.isPanning = true;
+    state.activeViewer = 'img';
+    state.lastX = e.clientX;
+    state.lastY = e.clientY;
+
+    imgViewer.style.cursor = 'grabbing';
+  }
+});
+
+segViewer.addEventListener('mousedown', e => {
+  if (state.currentIndex < 0) return;
+
+  const isPanTrigger =
+    state.mode === 'pan' ||
+    e.button === 1 ||
+    (e.button === 0 && e.altKey);
+
+  // Pan start
+  if (isPanTrigger) {
+    e.preventDefault();
+
+    state.isPanning = true;
+    state.activeViewer = 'seg';   // IMPORTANT for independent pan
+    state.lastX = e.clientX;
+    state.lastY = e.clientY;
+
+    segViewer.style.cursor = 'grabbing';
+    return; // prevent drawing logic from running
+  }
+
+  // DRAW START
+  if (e.button === 0 && state.mode === 'draw') {
+    e.preventDefault();
+
+    pushUndo();
+    state.isDrawing = true;
+
+    const { x, y } = viewerToCanvas(e, segViewer);
+    state.lastX = x;
+    state.lastY = y;
+
+    drawBrush(x, y, true);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  DRAWING
+// ═══════════════════════════════════════════════════════════════
+function viewerToCanvas(e, viewer) {
+  const r = viewer.getBoundingClientRect();
+  const vx = e.clientX - r.left;
+  const vy = e.clientY - r.top;
+
+  let panX, panY, zoom;
+
+  if (viewer === segViewer) {
+    panX = state.panSegX;
+    panY = state.panSegY;
+    zoom = state.zoomSeg;
+  } else {
+    panX = state.panImgX;
+    panY = state.panImgY;
+    zoom = state.zoomImg;
+  }
+
+  const cx = (vx - panX) / zoom;
+  const cy = (vy - panY) / zoom;
+
+  return { x: cx, y: cy };
+}
+
+function pushUndo() {
+  const idx = state.currentIndex;
+  if (!state.undoStack[idx]) state.undoStack[idx] = [];
+  const stack = state.undoStack[idx];
+  stack.push(annotCtx.getImageData(0, 0, annotCanvas.width, annotCanvas.height));
+  if (stack.length > state.MAX_UNDO) stack.shift();
+}
+
+function drawBrush(x, y, isStart) {
+  const radius = state.brushSize / 2;
+  const idx = state.currentIndex;
+
+  const w = annotCanvas.width;
+  const h = annotCanvas.height;
+
+  // get full pixel buffer
+  const img = annotCtx.getImageData(0, 0, w, h);
+  const data = img.data;
+
+  if (state.tool === 'eraser') {
+    // set alpha to 0 inside brush circle
+    for (let j = -radius; j <= radius; j++) {
+      for (let i = -radius; i <= radius; i++) {
+        const px = Math.round(x + i);
+        const py = Math.round(y + j);
+        if (px < 0 || py < 0 || px >= w || py >= h) continue;
+
+        if (i*i + j*j <= radius*radius) {
+          const p = (py * w + px) * 4;
+          data[p + 3] = 0; // fully transparent
+        }
+      }
+    }
+  } else {
+    const color = COLORS[state.tool]; // [r,g,b,255]
+
+    for (let j = -radius; j <= radius; j++) {
+      for (let i = -radius; i <= radius; i++) {
+        const px = Math.round(x + i);
+        const py = Math.round(y + j);
+        if (px < 0 || py < 0 || px >= w || py >= h) continue;
+
+        if (i*i + j*j <= radius*radius) {
+          const p = (py * w + px) * 4;
+
+          data[p]     = color[0];
+          data[p + 1] = color[1];
+          data[p + 2] = color[2];
+          data[p + 3] = 255;
+        }
+      }
+    }
+  }
+
+  annotCtx.putImageData(img, 0, 0);
+
+  state.lastX = x;
+  state.lastY = y;
+}
+
+
+window.addEventListener('mousemove', e => {
+  if (state.isPanning) {
+    const dx = e.clientX - state.lastX;
+    const dy = e.clientY - state.lastY;
+
+    if (state.activeViewer === 'seg') {
+      state.panSegX += dx;
+      state.panSegY += dy;
+    } else if (state.activeViewer === 'img') {
+      state.panImgX += dx;
+      state.panImgY += dy;
+    }
+
+    state.lastX = e.clientX;
+    state.lastY = e.clientY;
+
+    applyTransform();
+    return;
+  }
+
+  if (state.isDrawing) {
+    const { x, y } = viewerToCanvas(e, segViewer);
+    drawBrush(x, y, false);
+    return;
+  }
+
+  // Cursor readout (unchanged, but now uses correct mapping)
+  if (segViewer.matches(':hover')) {
+    const { x, y } = viewerToCanvas(e, segViewer);
+    const xi = Math.round(x);
+    const yi = Math.round(y);
+    statusCursor.textContent = `x: ${xi}  y: ${yi}`;
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  if (state.isPanning) {
+    state.isPanning = false;
+    segViewer.style.cursor = 'crosshair';
+    imgViewer.style.cursor = 'default';
+  }
+
+  if (state.isDrawing) {
+    state.isDrawing = false;
+    saveCurrentAnnotation();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  UNDO / CLEAR
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('btn-undo').onclick = undo;
+document.getElementById('btn-clear').onclick = () => {
+  if (state.currentIndex < 0) return;
+  pushUndo();
+  annotCtx.clearRect(0, 0, annotCanvas.width, annotCanvas.height);
+  saveCurrentAnnotation();
+};
+
+function undo() {
+  const idx = state.currentIndex;
+  if (idx < 0 || !state.undoStack[idx] || !state.undoStack[idx].length) return;
+  const prev = state.undoStack[idx].pop();
+  annotCtx.putImageData(prev, 0, 0);
+  saveCurrentAnnotation();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BRUSH TOOLS UI
+// ═══════════════════════════════════════════════════════════════
+document.querySelectorAll('[data-tool]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.tool = btn.dataset.tool;
+  });
+});
+
+brushSizeSlider.oninput = () => {
+  state.brushSize = +brushSizeSlider.value;
+  brushSizeVal.textContent = brushSizeSlider.value;
+};
+opacitySlider.oninput = () => {
+  opacityVal.textContent = opacitySlider.value + '%';
+  showTooltip('Opacity disabled (fixed to 100%)');
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); return; }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); go(-1); return; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); go(1);  return; }
+
+  const map = {'1':'artery','2':'vein','3':'crossing','4':'uncertain','e':'eraser','E':'eraser'};
+  if (map[e.key]) {
+    state.tool = map[e.key];
+    document.querySelectorAll('[data-tool]').forEach(b => {
+      b.classList.toggle('active', b.dataset.tool === state.tool);
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('export-btn').onclick = async () => {
+  if (state.segFiles.length === 0) {
+    showTooltip('No files loaded. Load folders first.'); return;
+  }
+  saveCurrentAnnotation();
+
+  const zip = new JSZip();
+  const offCanvas = document.createElement('canvas');
+  const offCtx = offCanvas.getContext('2d');
+  let count = 0;
+
+  showTooltip('Preparing export…');
+
+  for (let i = 0; i < state.segFiles.length; i++) {
+    if (!state.annotations[i]) continue; // skip unannotated frames
+    const file = state.segFiles[i];
+    const ann  = state.annotations[i];
+
+    offCanvas.width  = ann.width;
+    offCanvas.height = ann.height;
+    offCtx.clearRect(0, 0, ann.width, ann.height);
+
+    // Make a clean RGB (no alpha) version:
+    // White background → paint annotation on top
+    offCtx.fillStyle = '#000000'; // black background for unannotated areas
+    offCtx.fillRect(0, 0, ann.width, ann.height);
+    offCtx.putImageData(ann, 0, 0);
+
+    // Convert alpha-composited to solid RGB (flatten to black bg)
+    const raw = offCtx.getImageData(0, 0, ann.width, ann.height);
+    const rgbCanvas = document.createElement('canvas');
+    rgbCanvas.width  = ann.width;
+    rgbCanvas.height = ann.height;
+    const rgbCtx = rgbCanvas.getContext('2d');
+    rgbCtx.fillStyle = '#000000';
+    rgbCtx.fillRect(0, 0, ann.width, ann.height);
+    rgbCtx.drawImage(offCanvas, 0, 0);
+
+    // Export as PNG blob
+    const blob = await new Promise(res => rgbCanvas.toBlob(res, 'image/png'));
+    const fname = file.name.replace(/\.[^.]+$/, '') + '.png';
+    zip.file(fname, blob);
+    count++;
+  }
+
+  if (count === 0) {
+    showTooltip('No annotations to export yet.'); return;
+  }
+
+  showTooltip(`Exporting ${count} annotation(s)…`);
+  const zipBlob = await zip.generateAsync({type: 'blob'});
+  const url = URL.createObjectURL(zipBlob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'annotations.zip';
+  a.click();
+  URL.revokeObjectURL(url);
+  showTooltip(`Exported ${count} annotation(s) as annotations.zip`);
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  TOOLTIP
+// ═══════════════════════════════════════════════════════════════
+let tooltipTimer;
+function showTooltip(msg, duration=3000) {
+  const el = document.getElementById('tooltip');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(tooltipTimer);
+  tooltipTimer = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RESIZE
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  if (state.currentIndex >= 0) fitToView();
+});
+
+// Init
+applyTransform();
+</script>
+</body>
+</html>
