@@ -7,6 +7,7 @@ OCULAR provides a harmonized large-scale dataset of retinal artery-vein (A/V) an
 - [Pre-trained Model](#pre-trained-models)  
 - [Installation & Dependencies](#installation--dependencies)  
 - [Inference Pipeline](#inference)  
+- [Training](#training)
 - [Zone Extraction](#zone-extraction)
 - [Release of New A/V Annotations](#release-of-new-artery-vein-annotations)
 - [Citation](#citation)  
@@ -157,6 +158,38 @@ pip install -r requirements.txt
       --ensemble \
       --device cuda
 ```
+
+---
+
+## Training
+
+`train.py` is now available to train A/V segmentation models using CSV split files.
+
+### Split files
+
+- Training/validation split CSVs are read from the path passed to `--csv_path_tr`.
+- Validation CSV is inferred by replacing `/tr` with `/vl` in that path.
+- Example templates are provided in:
+  - [tr_av_segmentation_f1.csv](/home/gplaza/OCULAR/data_splits/tr_av_segmentation_f1.csv)
+  - [vl_av_segmentation_f1.csv](/home/gplaza/OCULAR/data_splits/vl_av_segmentation_f1.csv)
+
+### Example command
+
+```bash
+python train.py \
+  --csv_path_tr data_splits/tr_av_segmentation_f1.csv \
+  --model_name base_unet_repvgg_b3 \
+  --problem_type multi_class \
+  --im_size 1024/1024 \
+  --batch_size 4 \
+  --optimizer nadam \
+  --lr 1e-4 \
+  --n_epochs 100 \
+  --zones junctions/arcades \
+  --lambdas 1.0/1.25
+```
+
+`--zones` supports `junctions` and `arcades`.
 
 ---
 
