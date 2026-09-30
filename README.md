@@ -238,21 +238,21 @@ python extract_zones.py --data_root /path/to/data \
 
 Upon paper publication, we will release artery-vein segmentations extracted with OCULAR and semi-automatically refined using ground-truth binary vessel annotations for the following open-source datasets (1,791 images):
 
-| Dataset | N | Center | FOV | Resolution (px) | Region | Pathologies | Download |
-|--------|---|--------|-----|----------------|--------|-------------| --------|
-| ARIA | 143 | M | 50° | 576x768 | UK | DR, AMD | [[Link]](https://www.researchgate.net/post/How_can_I_find_the_ARIA_Automatic_Retinal_Image_Analysis_Dataset)
-| CHASE_DB1 | 28 | D | 30° | 1280x960 | UK | H | [[Link]](https://www.kaggle.com/datasets/rashasarhanalharthi/chase-db1)
-| DR HAGIS | 40 | M | 45° | [1880x2816], [1944x2896], [2136x3216], [2304x3456], [3168x4752] | UK | G, DR, AMD, HR | [[Link]](https://www.kaggle.com/datasets/ba1b909c12dbe6c08df00b3ee6fc22d2fef632870359f91384b9001a870f67bf)
-| DRiDB | 50 | M | 45° | 576×720 | CR | DR | [[Link]](https://ipg.fer.hr/ipg/resources/image_database)
-| FIVES | 800 | M | 50° | 2048×2048 | CN | DR, POAG, AMD | [[Link]](https://figshare.com/articles/figure/FIVES_A_Fundus_Image_Dataset_for_AI-based_Vessel_Segmentation/19688169)
-| FOVEA | 80 | M | 45° | [1080x1920], [1934x1960] | UK | -- |[[Link]](https://github.com/rvimlab/FOVEA)
-| IDRiD | 81 | M | 50° | 2848x4288 | IN | DR | [[Link]](https://www.kaggle.com/datasets/aaryapatel98/indian-diabetic-retinopathy-image-dataset)
-| MESSIDOR-MAPLES-DR | 198 | M | 30° | 1444×1444 | FR | DR, ME | [[Link]](https://github.com/LIV4D/MAPLES-DR)
-| ORVS | 49 | D | 30° | 1444×1444 | CAN | -- | [[Link]](https://github.com/openmedlab/Awesome-Medical-Dataset/blob/main/resources/ORVS.md)
-| STARE | 18 | M | 35° | 605×700 | US | POAG | [[Link]](https://cecas.clemson.edu/~ahoover/stare/)
-| TREND | 72 | M | 45° | 2560×1960 | BE | G | [[Link]](https://zenodo.org/records/4521044)
-| UoA-DR | 200 | M, D | 45° | 1024×1024 | AUS | DR | [[Link]](https://auckland.figshare.com/articles/journal_contribution/UoA-DR_Database_Info/5985208)
-| VEVIO | 32 | M | 30° | 640x480 + mosaics | US | -- |[[Link]](https://people.duke.edu/~sf59/Estrada_BOE_2012.htm)
+| Dataset | N | Center | FOV | Resolution (px) | Region | Pathologies | **A/V Annotations** | Dataset Download |
+|--------|---|--------|-----|----------------|--------|-------------|----------------| --------|
+| ARIA | 143 | M | 50° | 576x768 | UK | DR, AMD | [Link](https://drive.google.com/drive/folders/1VnjsKo7SCTfC7t4N7wBhGz9qf2KprC3s?usp=sharing) | [[Link]](https://www.researchgate.net/post/How_can_I_find_the_ARIA_Automatic_Retinal_Image_Analysis_Dataset) |
+| CHASE_DB1 | 28 | D | 30° | 1280x960 | UK | H | [Link](https://drive.google.com/drive/folders/1jPAG5RtM_bwzvYWlwGnHWCdUdYBEShr-?usp=sharing) | [[Link]](https://www.kaggle.com/datasets/rashasarhanalharthi/chase-db1) |
+| DR HAGIS | 40 | M | 45° | [1880x2816], [1944x2896], [2136x3216], [2304x3456], [3168x4752] | UK | G, DR, AMD, HR | [Link](https://drive.google.com/drive/folders/1roUlNMqy5oGpfq53p6W17AIHcEXyPrk9?usp=sharing) | [[Link]](https://www.kaggle.com/datasets/ba1b909c12dbe6c08df00b3ee6fc22d2fef632870359f91384b9001a870f67bf) |
+| DRiDB | 50 | M | 45° | 576×720 | CR | DR | [Link](https://drive.google.com/drive/folders/1QL7H_jVmFdTszZWGSpVUS2H2lqmvxya_?usp=sharing) | [[Link]](https://ipg.fer.hr/ipg/resources/image_database) |
+| FIVES | 800 | M | 50° | 2048×2048 | CN | DR, POAG, AMD |  | [[Link]](https://figshare.com/articles/figure/FIVES_A_Fundus_Image_Dataset_for_AI-based_Vessel_Segmentation/19688169) |
+| FOVEA | 80 | M | 45° | [1080x1920], [1934x1960] | UK | -- | [Link](https://drive.google.com/drive/folders/1WFu9ot_uC0vJvh-YpFvJBS5_L--z8aNQ?usp=sharing) | [[Link]](https://github.com/rvimlab/FOVEA) |
+| IDRiD | 81 | M | 50° | 2848x4288 | IN | DR |  | [[Link]](https://www.kaggle.com/datasets/aaryapatel98/indian-diabetic-retinopathy-image-dataset) |
+| MESSIDOR-MAPLES-DR | 198 | M | 30° | 1444×1444 | FR | DR, ME |  | [[Link]](https://github.com/LIV4D/MAPLES-DR) |
+| ORVS | 49 | D | 30° | 1444×1444 | CAN | -- | [Link](https://drive.google.com/drive/folders/1FvxSUEn-Md_0pWhN2QTxIKCEJX9eqx1L?usp=sharing) | [[Link]](https://github.com/openmedlab/Awesome-Medical-Dataset/blob/main/resources/ORVS.md) |
+| STARE | 18 | M | 35° | 605×700 | US | POAG |  | [[Link]](https://cecas.clemson.edu/~ahoover/stare/) |
+| TREND | 72 | M | 45° | 2560×1960 | BE | G |  | [[Link]](https://zenodo.org/records/4521044) |
+| UoA-DR | 200 | M, D | 45° | 1024×1024 | AUS | DR |  | [[Link]](https://auckland.figshare.com/articles/journal_contribution/UoA-DR_Database_Info/5985208) |
+| VEVIO | 32 | M | 30° | 640x480 + mosaics | US | -- |  | [[Link]](https://people.duke.edu/~sf59/Estrada_BOE_2012.htm) |
 
 ### Semi-Automatic Refinement Procedure
 
