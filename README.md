@@ -252,7 +252,7 @@ Upon paper publication, we will release artery-vein segmentations extracted with
 | STARE | 18 | M | 35° | 605×700 | US | POAG |  | [[Link]](https://cecas.clemson.edu/~ahoover/stare/) |
 | TREND | 72 | M | 45° | 2560×1960 | BE | G |  | [[Link]](https://zenodo.org/records/4521044) |
 | UoA-DR | 200 | M, D | 45° | 1024×1024 | AUS | DR |  | [[Link]](https://auckland.figshare.com/articles/journal_contribution/UoA-DR_Database_Info/5985208) |
-| VEVIO | 32 | M | 30° | 640x480 + mosaics | US | -- |  | [[Link]](https://people.duke.edu/~sf59/Estrada_BOE_2012.htm) |
+| VEVIO | 32 | M | 30° | 640x480 + mosaics | US | -- | [Link](https://drive.google.com/drive/folders/1b0ntI6mkpC9VQgcgp5R9ZThmc-e_gsTX?usp=sharing)  | [[Link]](https://people.duke.edu/~sf59/Estrada_BOE_2012.htm) |
 
 ### Semi-Automatic Refinement Procedure
 
